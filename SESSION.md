@@ -20,3 +20,5 @@ Bug a joué à la version 1 : « T'avais dit midi ! Et en plus, c'est moche ! »
 |---|---|---|
 | 17:41 | « Fais tourner le kart quand on penche le téléphone, comme un volant. Sur iPhone, un bouton demande l'autorisation ; si c'est refusé, les flèches restent. Teste le calcul de l'inclinaison. » | 18 tests passent ✓ (volant.js : zone morte, maximum, téléphone en paysage) ; pencher à gauche tourne à gauche, comme la flèche ✓ |
 | 17:41 | **Bug** : dans Chrome, le volant ne réagit pas : l'autorisation répond « prompt » au lieu de « granted ». | corrigé : seul un vrai refus coupe le volant ✓ |
+| 17:47 | « Rends le jeu réaliste : soleil bas et ombres, vrai ciel et brume, asphalte, herbe et bordures avec du grain, karts détaillés avec des roues qui tournent, une tribune. Sans fichier à télécharger. » | ciel physique, ombres, textures dessinées en code, karts à 4 roues qui tournent et braquent, tribune, portique, collines ✓ |
+| 17:47 | **Bug** : la piste avait disparu, les karts roulaient dans l'herbe. | cause : les triangles de la piste regardaient vers le sol ; ordre des sommets inversé, la piste revient ✓ |

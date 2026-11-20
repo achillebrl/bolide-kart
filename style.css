@@ -93,6 +93,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   padding: 16px 26px; box-shadow: 0 6px 0 var(--bolide); cursor: pointer;
 }
 .bouton:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--bolide); }
+body.volant-actif .pedale { opacity: .35; transform: scale(.7); }
 .bouton.secondaire { font-size: 16px; padding: 10px 18px; margin-bottom: 16px; box-shadow: 0 4px 0 var(--encre); background: transparent; color: var(--papier); border-color: var(--papier); }
 .bouton.secondaire:disabled { opacity: .85; cursor: default; }
 .plaque.grande { font-size: 120px; padding: 14px 24px 10px; margin-bottom: 22px; }

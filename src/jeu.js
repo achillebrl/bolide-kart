@@ -1,9 +1,11 @@
 // La boucle du jeu : écran titre, feux de départ, course de 3 tours, arrivée.
 import * as THREE from 'three';
+import { Sky } from 'three/addons/objects/Sky.js';
 import { construirePiste, reperer, pointA } from './piste.js';
 import { avancerTour, classement } from './course.js';
 import { avancerKart, piloteIA, VITESSE_MAX } from './kart.js';
 import { creerPiste3D, creerSol, creerKart, creerArbres } from './decor.js';
+import { RAYON_ROUE } from './kart3d.js';
 import { volantDepuisInclinaison } from './volant.js';
 
 const TOURS = 3;
@@ -25,16 +27,47 @@ const turbos = [0.18, 0.5, 0.78].map((f) => pointA(piste, L * f));
 
 // --- Scène ---
 const toile = document.getElementById('scene');
-const rendu = new THREE.WebGLRenderer({ canvas: toile, antialias: true });
+const rendu = new THREE.WebGLRenderer({ canvas: toile, antialias: true, powerPreference: 'high-performance' });
+const MOBILE = matchMedia('(pointer: coarse)').matches;
 rendu.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+rendu.toneMapping = THREE.ACESFilmicToneMapping;
+rendu.toneMappingExposure = 0.95;
+rendu.shadowMap.enabled = true;
+rendu.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#9ed8f0');
-scene.fog = new THREE.Fog('#9ed8f0', 90, 260);
-const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 600);
-scene.add(new THREE.HemisphereLight('#ffffff', '#5a8f3c', 1.1));
-const soleil = new THREE.DirectionalLight('#fff3d6', 1.4);
-soleil.position.set(60, 120, 40);
-scene.add(soleil, creerSol(), creerPiste3D(piste, DEMI_LARGEUR, turbos), creerArbres(piste, reperer, DEMI_LARGEUR + BORDURE, 140));
+scene.fog = new THREE.FogExp2('#d3e2ee', 0.0045);
+const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 1500);
+
+// Ciel physique (diffusion de l'atmosphère) avec un soleil bas de fin d'après-midi ; il sert aussi d'éclairage d'ambiance.
+const DIRECTION_SOLEIL = new THREE.Vector3(120, 60, 80).normalize();
+const ciel = new Sky();
+ciel.scale.setScalar(4000);
+ciel.material.uniforms.turbidity.value = 3.2;
+ciel.material.uniforms.rayleigh.value = 2.2;
+ciel.material.uniforms.mieCoefficient.value = 0.004;
+ciel.material.uniforms.mieDirectionalG.value = 0.85;
+ciel.material.uniforms.sunPosition.value.copy(DIRECTION_SOLEIL);
+const pmrem = new THREE.PMREMGenerator(rendu);
+const sceneCiel = new THREE.Scene();
+sceneCiel.add(ciel.clone());
+scene.environment = pmrem.fromScene(sceneCiel, 0.04).texture;
+scene.environmentIntensity = 0.55;
+scene.add(ciel);
+
+scene.add(new THREE.HemisphereLight('#cfe3ff', '#4a6b2f', 0.5));
+const soleil = new THREE.DirectionalLight('#ffd9a8', 2.6);
+soleil.castShadow = true;
+soleil.shadow.mapSize.setScalar(MOBILE ? 1024 : 2048);
+Object.assign(soleil.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 400 });
+soleil.shadow.bias = -0.0004;
+soleil.shadow.normalBias = 0.03;
+scene.add(soleil, soleil.target, creerSol(), creerPiste3D(piste, DEMI_LARGEUR, turbos), creerArbres(piste, reperer, DEMI_LARGEUR + BORDURE, 160));
+
+/** Le soleil suit le joueur : les ombres restent nettes autour de lui. */
+function placerSoleil(k) {
+  soleil.target.position.set(k.x, 0, k.z);
+  soleil.position.set(k.x + DIRECTION_SOLEIL.x * 150, DIRECTION_SOLEIL.y * 150, k.z + DIRECTION_SOLEIL.z * 150);
+}
 
 function redimensionner() {
   rendu.setSize(window.innerWidth, window.innerHeight, false);
@@ -86,6 +119,7 @@ function ecouterInclinaison() {
   window.addEventListener('deviceorientation', (e) => {
     if (e.gamma === null) return;
     volantActif = true;
+    document.body.classList.add('volant-actif');
     const angle = screen.orientation?.angle ?? window.orientation ?? 0;
     inclinaison = volantDepuisInclinaison({ beta: e.beta, gamma: e.gamma }, angle);
   });
@@ -158,7 +192,8 @@ function commandesDe(k) {
 function pas(k, dt) {
   const ici = reperer(piste, k.x, k.z, k.indice);
   const surPiste = Math.abs(ici.ecart) < DEMI_LARGEUR + BORDURE;
-  let suivant = avancerKart(k, commandesDe(k), dt, surPiste);
+  const commandes = commandesDe(k);
+  let suivant = { ...avancerKart(k, commandes, dt, surPiste), volant: commandes.volant };
   if (k.profil) suivant = { ...suivant, vitesse: Math.min(suivant.vitesse, VITESSE_MAX * k.profil.rythme + (suivant.turbo > 0 ? 8 : 0)) };
   let pos = reperer(piste, suivant.x, suivant.z, ici.indice);
   if (Math.abs(pos.ecart) > 35) {
@@ -213,11 +248,14 @@ function suivreCamera(k, dt, titre) {
   camera.updateProjectionMatrix();
 }
 
-function dessinerKarts() {
+function dessinerKarts(dt) {
   [joueurMesh, ...adversairesMesh].forEach((mesh, i) => {
     const k = karts[i];
     mesh.position.set(k.x, 0, k.z);
     mesh.rotation.y = k.cap;
+    const { roues, pivots } = mesh.userData;
+    roues.forEach((r) => { r.rotation.x += (k.vitesse * dt) / RAYON_ROUE; });
+    pivots.forEach((p) => { p.rotation.y += ((k.volant ?? 0) * 0.45 - p.rotation.y) * Math.min(1, dt * 12); });
   });
 }
 
@@ -258,7 +296,8 @@ function boucle(maintenant) {
     karts = separer(karts.map((k) => pas(k, dt)));
     majHud();
   }
-  dessinerKarts();
+  dessinerKarts(dt);
+  placerSoleil(karts[0]);
   suivreCamera(karts[0], dt, etat === 'titre');
   rendu.render(scene, camera);
   requestAnimationFrame(boucle);
