@@ -290,4 +290,4 @@ if (CAPTURE) {
 }
 
 // Pour les tests en navigateur et le tournage.
-window.bolide = { lancer, etat: () => etat, karts: () => karts, appuis, image, pret: true };
+window.bolide = { lancer, etat: () => etat, karts: () => karts, appuis, image, pret: true, appels: () => rendu.info.render.calls };

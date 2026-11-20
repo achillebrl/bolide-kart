@@ -27,6 +27,7 @@ Bug a joué à la version 1 : « T'avais dit midi ! Et en plus, c'est moche ! »
 | 17:58 | « Ajoute un mode capture : la même course rejouée image par image, où le kart bleu part 4e et finit 1er, pour filmer une vidéo sans saccade. Ne change pas le jeu normal. » | logique de course partagée (simulation.js), mode ?capture&graine=7 ; 29 tests passent ✓ |
 | 17:58 | **Bug** : sur la grille, le joueur était classé 3e au lieu de 4e (deux karts exactement à la même distance). | corrigé : à égalité, le joueur est classé derrière ✓ |
 | 17:58 | « Publie le code sur GitHub et remets le jeu en ligne. » | dépôt public github.com/achillebrl/bolide-kart ; version 2 en ligne sur bolide-kart.vercel.app ✓ |
-
-Séance 2 terminée à 17:58 : version 2 en ligne.
 | 18:07 | **Bug** : à pleine vitesse, la caméra traînait loin derrière le kart bleu ; il paraissait petit et un adversaire prenait toute la place. | corrigé : la caméra suit le kart de plus près ✓ |
+| 18:38 | « Corrige le volant : il doit réagir pareil que le téléphone soit droit ou penché, et allège le dessin des karts pour les iPhone moyens. » | volant calculé dans le plan de l'écran (31 tests) ; 245 → 127 appels de dessin par image ✓ |
+
+Séance 2 : version 2 en ligne à 17:58, corrections après relecture à 18:38.

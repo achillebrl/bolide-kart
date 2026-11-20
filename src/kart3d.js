@@ -1,5 +1,6 @@
 // Le kart en 3D : châssis arrondi, pontons, pilote casqué, aileron, roues qui tournent et braquent.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { texNumero } from './textures.js';
 
 export const RAYON_ROUE = 0.36;
@@ -7,6 +8,36 @@ let numero = 0;
 
 const peinture = (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.35, roughness: 0.32 });
 const mat = (c, rugosite = 0.7, metal = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: rugosite, metalness: metal });
+
+/**
+ * Fusionne toutes les pièces fixes d'un groupe en un objet par matière : beaucoup moins d'appels de dessin
+ * (un iPhone moyen dessine vite peu d'objets, lentement beaucoup de petits). `garder` : enfants à laisser à part.
+ */
+function fusionnerParMatiere(groupe, garder = []) {
+  groupe.updateMatrixWorld(true);
+  const inverse = groupe.matrixWorld.clone().invert();
+  const parMatiere = new Map();
+  const aRetirer = [];
+  groupe.traverse((o) => {
+    if (!o.isMesh || garder.some((g) => g === o || g.getObjectById(o.id))) return;
+    const m = o.material;
+    const cle = `${m.color.getHexString()}-${m.roughness}-${m.metalness}-${m.map?.uuid ?? ''}`;
+    const geo = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(inverse.clone().multiply(o.matrixWorld));
+    ['uv1', 'uv2'].forEach((a) => geo.deleteAttribute(a));
+    if (!parMatiere.has(cle)) parMatiere.set(cle, { matiere: m, geos: [], ombre: false });
+    const lot = parMatiere.get(cle);
+    lot.geos.push(geo);
+    lot.ombre ||= o.castShadow;
+    aRetirer.push(o);
+  });
+  aRetirer.forEach((o) => o.parent.remove(o));
+  parMatiere.forEach(({ matiere, geos, ombre }) => {
+    const mesh = new THREE.Mesh(mergeGeometries(geos), matiere);
+    mesh.castShadow = ombre;
+    mesh.receiveShadow = true;
+    groupe.add(mesh);
+  });
+}
 
 /** Profil latéral du châssis (z vers l'avant, y vers le haut), extrudé sur la largeur avec des bords arrondis. */
 function chassis(couleur) {
@@ -31,7 +62,7 @@ function roue() {
   const groupe = new THREE.Group();
   const pneu = new THREE.Mesh(new THREE.CylinderGeometry(RAYON_ROUE, RAYON_ROUE, 0.34, 24, 1), mat('#141518', 0.85));
   pneu.rotation.z = Math.PI / 2;
-  const flanc = new THREE.Mesh(new THREE.TorusGeometry(RAYON_ROUE - 0.04, 0.05, 8, 24), mat('#1d1f23', 0.8));
+  const flanc = new THREE.Mesh(new THREE.TorusGeometry(RAYON_ROUE - 0.04, 0.05, 8, 24), mat('#141518', 0.85));
   flanc.rotation.y = Math.PI / 2;
   flanc.position.x = 0.16;
   const jante = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.36, 14), mat('#c9ccd1', 0.25, 0.9));
@@ -45,7 +76,8 @@ function roue() {
   }
   rayons.position.x = 0.185;
   groupe.add(pneu, flanc, jante, rayons);
-  groupe.traverse((o) => { o.castShadow = true; });
+  pneu.castShadow = true; // le flanc, la jante et les rayons ne font pas d'ombre visible
+  fusionnerParMatiere(groupe);
   return groupe;
 }
 
@@ -137,7 +169,8 @@ export function creerKart(couleur, casque) {
     roues.push(rouleau);
     if (avant) pivots.push(pivot);
   });
-  kart.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  kart.traverse((o) => { if (o.isMesh && !pivots.some((p) => p.getObjectById(o.id)) && !roues.some((r) => r.getObjectById(o.id))) { o.castShadow = true; o.receiveShadow = true; } });
+  fusionnerParMatiere(kart, [...roues]);
   kart.userData = {
     roues,
     pivots,
