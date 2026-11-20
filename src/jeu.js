@@ -6,6 +6,7 @@ import { avancerKart, piloteIA, VITESSE_MAX } from './kart.js';
 import { creerPiste3D, creerSol, creerKart, creerArbres } from './decor.js';
 
 const TOURS = 3;
+const DEMO = new URLSearchParams(location.search).has('demo');
 const DEMI_LARGEUR = 7;
 const BORDURE = 1.4;
 const TURBO_SECONDES = 1.3;
@@ -118,6 +119,8 @@ function majFeux() {
 function commandesDe(k) {
   if (etat !== 'course' || k.fini !== null) return { gaz: 0, frein: k.fini !== null ? 0.4 : 1, volant: 0 };
   if (k.profil) return piloteIA(k, piste, k.profil);
+  // ?demo : le kart bleu se pilote seul (pour filmer une partie sans téléphone).
+  if (DEMO) return piloteIA(k, piste, { couloir: 0, nervosite: 1.05 });
   return { gaz: appuis.frein ? 0 : 1, frein: appuis.frein ? 1 : 0, volant: (appuis.gauche ? 1 : 0) - (appuis.droite ? 1 : 0) };
 }
 
