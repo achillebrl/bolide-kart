@@ -6,6 +6,7 @@ import { avancerTour, classement } from './course.js';
 import { avancerKart, piloteIA, VITESSE_MAX } from './kart.js';
 import { creerPiste3D, creerSol, creerKart, creerArbres } from './decor.js';
 import { RAYON_ROUE } from './kart3d.js';
+import { creerEffets } from './effets.js';
 import { volantDepuisInclinaison } from './volant.js';
 
 const TOURS = 3;
@@ -69,10 +70,12 @@ function placerSoleil(k) {
   soleil.position.set(k.x + DIRECTION_SOLEIL.x * 150, DIRECTION_SOLEIL.y * 150, k.z + DIRECTION_SOLEIL.z * 150);
 }
 
+let effets = null;
 function redimensionner() {
   rendu.setSize(window.innerWidth, window.innerHeight, false);
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
+  effets?.redimensionner(rendu.getDrawingBufferSize(new THREE.Vector2()).y);
 }
 window.addEventListener('resize', redimensionner);
 redimensionner();
@@ -87,6 +90,8 @@ function placeDeDepart(rangee, cote) {
 const joueurMesh = creerKart('#2457ff', '#f7f5ef');
 const adversairesMesh = ADVERSAIRES.map((a) => creerKart(a.couleur, a.casque));
 scene.add(joueurMesh, ...adversairesMesh);
+effets = creerEffets(scene, [joueurMesh, ...adversairesMesh]);
+effets.redimensionner(rendu.getDrawingBufferSize(new THREE.Vector2()).y);
 
 let karts = [];
 function nouvelleGrille() {
@@ -233,8 +238,8 @@ const visee = new THREE.Vector3();
 function suivreCamera(k, dt, titre) {
   const fx = Math.sin(k.cap);
   const fz = Math.cos(k.cap);
-  const recul = titre ? 16 : 7.5;
-  const haut = titre ? 7 : 3.4;
+  const recul = titre ? 16 : 6.6;
+  const haut = titre ? 7 : 3.1;
   const angle = titre ? horloge * 0.25 : 0;
   const voulu = new THREE.Vector3(
     k.x - (fx * Math.cos(angle) - fz * Math.sin(angle)) * recul,
@@ -244,8 +249,16 @@ function suivreCamera(k, dt, titre) {
   camera.position.lerp(voulu, titre ? 1 : 1 - Math.exp(-dt * 8));
   visee.set(k.x + fx * 6, 1.2, k.z + fz * 6);
   camera.lookAt(visee);
-  camera.fov = 68 + Math.max(0, k.vitesse) * 0.28;
+  // À plus de 85 % de la vitesse max, la caméra tremble (bruit lissé, toujours le même pour une même horloge).
+  const tremble = titre ? 0 : Math.max(0, (k.vitesse - VITESSE_MAX * 0.85) / (VITESSE_MAX * 0.15));
+  if (tremble > 0) {
+    const a = Math.min(1, tremble) * 0.06;
+    camera.position.x += Math.sin(horloge * 31.7) * Math.cos(horloge * 17.3) * a;
+    camera.position.y += Math.sin(horloge * 27.1 + 1.3) * a;
+  }
+  camera.fov = 68 + Math.max(0, k.vitesse) * 0.35;
   camera.updateProjectionMatrix();
+  $('vitesse').classList.toggle('actif', !titre && (k.turbo ?? 0) > 0);
 }
 
 function dessinerKarts(dt) {
@@ -297,6 +310,7 @@ function boucle(maintenant) {
     majHud();
   }
   dessinerKarts(dt);
+  effets.maj(karts, dt);
   placerSoleil(karts[0]);
   suivreCamera(karts[0], dt, etat === 'titre');
   rendu.render(scene, camera);
