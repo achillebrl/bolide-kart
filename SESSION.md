@@ -26,3 +26,6 @@ Bug a joué à la version 1 : « T'avais dit midi ! Et en plus, c'est moche ! »
 | 17:51 | « Ajoute le son : le moteur qui monte avec la vitesse, le crissement des pneus quand on dérape, les bips des feux. Coupe tout quand l'onglet est caché. » | son synthétisé sans fichier ; 3 bips rouges puis le vert ; 25 tests passent ✓ |
 | 17:58 | « Ajoute un mode capture : la même course rejouée image par image, où le kart bleu part 4e et finit 1er, pour filmer une vidéo sans saccade. Ne change pas le jeu normal. » | logique de course partagée (simulation.js), mode ?capture&graine=7 ; 29 tests passent ✓ |
 | 17:58 | **Bug** : sur la grille, le joueur était classé 3e au lieu de 4e (deux karts exactement à la même distance). | corrigé : à égalité, le joueur est classé derrière ✓ |
+| 17:58 | « Publie le code sur GitHub et remets le jeu en ligne. » | dépôt public github.com/achillebrl/bolide-kart ; version 2 en ligne sur bolide-kart.vercel.app ✓ |
+
+Séance 2 terminée à 17:58 : version 2 en ligne.
