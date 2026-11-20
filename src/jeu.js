@@ -4,6 +4,7 @@ import { construirePiste, reperer, pointA } from './piste.js';
 import { avancerTour, classement } from './course.js';
 import { avancerKart, piloteIA, VITESSE_MAX } from './kart.js';
 import { creerPiste3D, creerSol, creerKart, creerArbres } from './decor.js';
+import { volantDepuisInclinaison } from './volant.js';
 
 const TOURS = 3;
 const DEMO = new URLSearchParams(location.search).has('demo');
@@ -78,6 +79,34 @@ window.addEventListener('keyup', (e) => { if (touches[e.code]) appuis[touches[e.
   ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => bouton.addEventListener(ev, poser(false)));
 });
 
+// Le volant : pencher le téléphone. Les flèches gardent la main dès qu'on appuie dessus.
+let volantActif = false;
+let inclinaison = 0;
+function ecouterInclinaison() {
+  window.addEventListener('deviceorientation', (e) => {
+    if (e.gamma === null) return;
+    volantActif = true;
+    const angle = screen.orientation?.angle ?? window.orientation ?? 0;
+    inclinaison = volantDepuisInclinaison({ beta: e.beta, gamma: e.gamma }, angle);
+  });
+}
+async function activerVolant() {
+  const bouton = document.getElementById('volant');
+  try {
+    const demande = window.DeviceOrientationEvent?.requestPermission;
+    const reponse = demande ? await demande.call(DeviceOrientationEvent) : 'granted';
+    // iPhone répond 'granted' ou 'denied' ; Chrome peut répondre 'prompt' : on écoute quand même.
+    if (reponse === 'denied') throw new Error(reponse);
+    ecouterInclinaison();
+    bouton.textContent = 'Volant activé : penche le téléphone';
+    bouton.disabled = true;
+  } catch {
+    bouton.textContent = 'Volant refusé : joue avec les flèches';
+    bouton.disabled = true;
+  }
+}
+document.getElementById('volant').addEventListener('click', activerVolant);
+
 // --- États ---
 const $ = (id) => document.getElementById(id);
 let etat = 'titre';
@@ -121,7 +150,9 @@ function commandesDe(k) {
   if (k.profil) return piloteIA(k, piste, k.profil);
   // ?demo : le kart bleu se pilote seul (pour filmer une partie sans téléphone).
   if (DEMO) return piloteIA(k, piste, { couloir: 0, nervosite: 1.05 });
-  return { gaz: appuis.frein ? 0 : 1, frein: appuis.frein ? 1 : 0, volant: (appuis.gauche ? 1 : 0) - (appuis.droite ? 1 : 0) };
+  const fleches = (appuis.gauche ? 1 : 0) - (appuis.droite ? 1 : 0);
+  const volant = appuis.gauche || appuis.droite || !volantActif ? fleches : inclinaison;
+  return { gaz: appuis.frein ? 0 : 1, frein: appuis.frein ? 1 : 0, volant };
 }
 
 function pas(k, dt) {
