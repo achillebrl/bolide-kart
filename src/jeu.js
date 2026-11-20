@@ -6,7 +6,8 @@ import { avancerTour, classement } from './course.js';
 import { avancerKart, piloteIA, VITESSE_MAX } from './kart.js';
 import { creerPiste3D, creerSol, creerKart, creerArbres } from './decor.js';
 import { RAYON_ROUE } from './kart3d.js';
-import { creerEffets } from './effets.js';
+import { creerEffets, derapage } from './effets.js';
+import { creerSon } from './son.js';
 import { volantDepuisInclinaison } from './volant.js';
 
 const TOURS = 3;
@@ -153,8 +154,12 @@ let horloge = 0;
 let depart = 0;
 
 function afficher(id, visible) { $(id).hidden = !visible; }
+const son = creerSon();
+let feuxAllumes = 0;
 
 function lancer() {
+  son.demarrer();
+  feuxAllumes = 0;
   nouvelleGrille();
   etat = 'feux';
   horloge = 0;
@@ -179,6 +184,9 @@ function majFeux() {
     f.classList.toggle('vert', vert);
   });
   $('feux-texte').textContent = vert ? 'Partez !' : '';
+  const etape = vert ? 4 : allumes;
+  if (etape > feuxAllumes) son.bip(vert);
+  feuxAllumes = etape;
   if (vert && etat === 'feux') { etat = 'course'; depart = horloge; }
   if (horloge > 3.4) afficher('feux', false);
 }
@@ -293,6 +301,7 @@ function majHud() {
       : `Tu finis ${rang}${suffixe(rang)} en ${formaterTemps(joueur.fini)}. Les turbos orange font gagner du temps.`;
     afficher('arrivee', true);
     afficher('commandes', false);
+    son.arrivee();
   }
 }
 
@@ -311,6 +320,7 @@ function boucle(maintenant) {
   }
   dessinerKarts(dt);
   effets.maj(karts, dt);
+  son.maj(karts[0], derapage(karts[0]));
   placerSoleil(karts[0]);
   suivreCamera(karts[0], dt, etat === 'titre');
   rendu.render(scene, camera);
