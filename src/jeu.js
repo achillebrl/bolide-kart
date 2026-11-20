@@ -1,31 +1,23 @@
 // La boucle du jeu : écran titre, feux de départ, course de 3 tours, arrivée.
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { construirePiste, reperer, pointA } from './piste.js';
-import { avancerTour, classement } from './course.js';
-import { avancerKart, piloteIA, VITESSE_MAX } from './kart.js';
+import { reperer } from './piste.js';
+import { piloteIA, VITESSE_MAX } from './kart.js';
+import { creerMonde, grilleDeDepart, feuxA, pas, separer, commandesIA, rangDuJoueur, ADVERSAIRES, TOURS, DEMI_LARGEUR, BORDURE } from './simulation.js';
+import { creerCourseCapture } from './capture.js';
 import { creerPiste3D, creerSol, creerKart, creerArbres } from './decor.js';
 import { RAYON_ROUE } from './kart3d.js';
 import { creerEffets, derapage } from './effets.js';
 import { creerSon } from './son.js';
 import { volantDepuisInclinaison } from './volant.js';
 
-const TOURS = 3;
-const DEMO = new URLSearchParams(location.search).has('demo');
-const DEMI_LARGEUR = 7;
-const BORDURE = 1.4;
-const TURBO_SECONDES = 1.3;
-const CIRCUIT = [[0, 0], [0, 70], [18, 110], [60, 125], [95, 105], [100, 65], [80, 40], [90, 10], [130, -5],
-  [150, -45], [125, -85], [75, -90], [45, -60], [15, -55], [0, -30]];
-const ADVERSAIRES = [
-  { nom: 'orange', couleur: '#ff8a1c', casque: '#f7f5ef', couloir: 2.5, nervosite: 1.0, rythme: 0.955 },
-  { nom: 'vert', couleur: '#2fbf71', casque: '#ffd23f', couloir: -2.5, nervosite: 1.1, rythme: 0.975 },
-  { nom: 'rose', couleur: '#ff5fa2', casque: '#14213d', couloir: 0, nervosite: 0.9, rythme: 0.94 },
-];
-
-const piste = construirePiste(CIRCUIT, { pas: 1 });
-const L = piste.longueur;
-const turbos = [0.18, 0.5, 0.78].map((f) => pointA(piste, L * f));
+const PARAMS = new URLSearchParams(location.search);
+const DEMO = PARAMS.has('demo');
+// ?capture&graine=7 : le jeu attend, et window.bolide.image() avance d'une image (1/30 s) pour filmer le reel.
+const CAPTURE = PARAMS.has('capture');
+const PAS_CAPTURE = 1 / 30;
+const monde = creerMonde();
+const { piste, L, turbos } = monde;
 
 // --- Scène ---
 const toile = document.getElementById('scene');
@@ -82,12 +74,6 @@ window.addEventListener('resize', redimensionner);
 redimensionner();
 
 // --- Karts ---
-function placeDeDepart(rangee, cote) {
-  const p = pointA(piste, L - 8 - rangee * 9);
-  const lat = cote * 3;
-  return { x: p.x - p.tz * lat, z: p.z + p.tx * lat, cap: Math.atan2(p.tx, p.tz) };
-}
-
 const joueurMesh = creerKart('#2457ff', '#f7f5ef');
 const adversairesMesh = ADVERSAIRES.map((a) => creerKart(a.couleur, a.casque));
 scene.add(joueurMesh, ...adversairesMesh);
@@ -96,14 +82,7 @@ effets.redimensionner(rendu.getDrawingBufferSize(new THREE.Vector2()).y);
 
 let karts = [];
 function nouvelleGrille() {
-  // Le joueur part dernier : il faut doubler.
-  const places = [placeDeDepart(0, 1), placeDeDepart(0, -1), placeDeDepart(1, 1), placeDeDepart(1, -1)];
-  const ordre = [1, 2, 0];
-  karts = [
-    { id: 'joueur', ...places[3], vitesse: 0, turbo: 0, tours: 0, s: L - 17, fini: null },
-    ...ADVERSAIRES.map((a, i) => ({ id: a.nom, profil: a, ...places[ordre[i]], vitesse: 0, turbo: 0, tours: 0, s: L - 8, fini: null })),
-  ];
-  karts = karts.map((k) => ({ ...k, ...reperer(piste, k.x, k.z) }));
+  karts = grilleDeDepart(monde);
 }
 
 // --- Commandes ---
@@ -158,7 +137,7 @@ const son = creerSon();
 let feuxAllumes = 0;
 
 function lancer() {
-  son.demarrer();
+  if (!CAPTURE) son.demarrer();
   feuxAllumes = 0;
   nouvelleGrille();
   etat = 'feux';
@@ -177,8 +156,7 @@ const formaterTemps = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padSta
 
 function majFeux() {
   const feux = document.querySelectorAll('.feu');
-  const allumes = Math.min(3, Math.floor(horloge / 0.8));
-  const vert = horloge >= 2.6;
+  const { allumes, vert } = feuxA(horloge);
   feux.forEach((f, i) => {
     f.classList.toggle('rouge', !vert && i < allumes);
     f.classList.toggle('vert', vert);
@@ -194,51 +172,12 @@ function majFeux() {
 // --- Simulation ---
 function commandesDe(k) {
   if (etat !== 'course' || k.fini !== null) return { gaz: 0, frein: k.fini !== null ? 0.4 : 1, volant: 0 };
-  if (k.profil) return piloteIA(k, piste, k.profil);
+  if (k.profil) return commandesIA(k, monde);
   // ?demo : le kart bleu se pilote seul (pour filmer une partie sans téléphone).
   if (DEMO) return piloteIA(k, piste, { couloir: 0, nervosite: 1.05 });
   const fleches = (appuis.gauche ? 1 : 0) - (appuis.droite ? 1 : 0);
   const volant = appuis.gauche || appuis.droite || !volantActif ? fleches : inclinaison;
   return { gaz: appuis.frein ? 0 : 1, frein: appuis.frein ? 1 : 0, volant };
-}
-
-function pas(k, dt) {
-  const ici = reperer(piste, k.x, k.z, k.indice);
-  const surPiste = Math.abs(ici.ecart) < DEMI_LARGEUR + BORDURE;
-  const commandes = commandesDe(k);
-  let suivant = { ...avancerKart(k, commandes, dt, surPiste), volant: commandes.volant };
-  if (k.profil) suivant = { ...suivant, vitesse: Math.min(suivant.vitesse, VITESSE_MAX * k.profil.rythme + (suivant.turbo > 0 ? 8 : 0)) };
-  let pos = reperer(piste, suivant.x, suivant.z, ici.indice);
-  if (Math.abs(pos.ecart) > 35) {
-    // Trop loin dans l'herbe : on revient au bord de la piste.
-    const p = pointA(piste, pos.s);
-    suivant = { ...suivant, x: p.x, z: p.z, cap: Math.atan2(p.tx, p.tz), vitesse: 4 };
-    pos = reperer(piste, suivant.x, suivant.z, pos.indice);
-  }
-  const surTurbo = turbos.some((t) => Math.hypot(t.x - suivant.x, t.z - suivant.z) < 3.2);
-  const tour = avancerTour({ tours: k.tours, s: k.s }, pos.s, L);
-  const fini = k.fini === null && tour.tours > TOURS ? horloge - depart : k.fini;
-  return { ...suivant, indice: pos.indice, ecart: pos.ecart, s: tour.s, tours: tour.tours, fini, turbo: surTurbo ? TURBO_SECONDES : suivant.turbo };
-}
-
-/** Deux karts qui se touchent s'écartent l'un de l'autre. */
-function separer(liste) {
-  const sortie = liste.map((k) => ({ ...k }));
-  for (let i = 0; i < sortie.length; i += 1) {
-    for (let j = i + 1; j < sortie.length; j += 1) {
-      const a = sortie[i];
-      const b = sortie[j];
-      const dx = b.x - a.x;
-      const dz = b.z - a.z;
-      const d = Math.hypot(dx, dz);
-      if (d > 0 && d < 2.4) {
-        const pousse = (2.4 - d) / 2;
-        a.x -= (dx / d) * pousse; a.z -= (dz / d) * pousse;
-        b.x += (dx / d) * pousse; b.z += (dz / d) * pousse;
-      }
-    }
-  }
-  return sortie;
 }
 
 // --- Caméra et affichage ---
@@ -281,11 +220,8 @@ function dessinerKarts(dt) {
 }
 
 function majHud() {
-  const rangs = classement(karts.filter((k) => k.fini === null), L);
-  const arrives = karts.filter((k) => k.fini !== null).sort((a, b) => a.fini - b.fini);
-  const ordre = [...arrives, ...rangs];
   const joueur = karts[0];
-  const rang = ordre.findIndex((k) => k.id === 'joueur') + 1;
+  const rang = rangDuJoueur(karts, L);
   $('rang').textContent = rang;
   $('suffixe').textContent = suffixe(rang);
   $('tour').textContent = `Tour ${Math.min(TOURS, Math.max(1, joueur.tours))}/${TOURS}`;
@@ -306,6 +242,15 @@ function majHud() {
 }
 
 // --- Boucle ---
+function dessiner(dt) {
+  dessinerKarts(dt);
+  effets.maj(karts, dt);
+  if (!CAPTURE) son.maj(karts[0], derapage(karts[0]));
+  placerSoleil(karts[0]);
+  suivreCamera(karts[0], dt, etat === 'titre');
+  rendu.render(scene, camera);
+}
+
 nouvelleGrille();
 let avant = performance.now();
 function boucle(maintenant) {
@@ -315,18 +260,34 @@ function boucle(maintenant) {
   // Les feux restent à l'écran jusqu'à 0,8 s après le départ (bug du 20/11 : ils ne partaient jamais).
   if (!$('feux').hidden) majFeux();
   if (etat === 'course' || etat === 'arrivee') {
-    karts = separer(karts.map((k) => pas(k, dt)));
+    karts = separer(karts.map((k) => pas(k, commandesDe(k), dt, monde, horloge - depart)));
     majHud();
   }
-  dessinerKarts(dt);
-  effets.maj(karts, dt);
-  son.maj(karts[0], derapage(karts[0]));
-  placerSoleil(karts[0]);
-  suivreCamera(karts[0], dt, etat === 'titre');
-  rendu.render(scene, camera);
+  dessiner(dt);
   requestAnimationFrame(boucle);
 }
-requestAnimationFrame(boucle);
+
+/** Mode capture : la course de capture.js (identique à simulerCapture) pilote l'état, le jeu ne fait qu'afficher. */
+let course = null;
+function image() {
+  const evenement = course.etape(PAS_CAPTURE);
+  horloge = course.horloge();
+  karts = course.karts();
+  if (!$('feux').hidden) majFeux();
+  if (etat === 'course' || etat === 'arrivee') majHud();
+  dessiner(PAS_CAPTURE);
+  return evenement;
+}
+
+if (CAPTURE) {
+  course = creerCourseCapture(Number(PARAMS.get('graine') ?? 7));
+  lancer();
+  karts = course.karts();
+  afficher('commandes', false);
+  dessiner(0);
+} else {
+  requestAnimationFrame(boucle);
+}
 
 // Pour les tests en navigateur et le tournage.
-window.bolide = { lancer, etat: () => etat, karts: () => karts, appuis };
+window.bolide = { lancer, etat: () => etat, karts: () => karts, appuis, image, pret: true };
