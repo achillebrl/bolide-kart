@@ -9,3 +9,5 @@ Vraies heures (Paris), vrais prompts, vrais bugs. Sert au replay de la session d
 | 09:28 | « Ajoute la physique du kart et des adversaires qui suivent la piste, avec des tests. » | 12 tests passent ✓ (kart.js) |
 | 12:44 | « Fais le jeu en 3D : le circuit, les karts, l'écran titre, les feux de départ et deux flèches pour jouer au doigt. » | jeu jouable sur iPhone (Three.js), 0 erreur |
 | 12:44 | **Bug** : au départ, les feux verts « Partez ! » restent affichés toute la course et cachent la piste. | cause : les feux ne se mettaient à jour que pendant le compte à rebours ; corrigé, ils disparaissent 0,8 s après le départ ✓ |
+| 14:07 | **Bug** : à l'arrivée, le chrono retombe à 0:00,0 au lieu d'afficher le temps de la course. | corrigé : il garde le temps du joueur ✓ |
+| 14:07 | « Mets le jeu en ligne. » | en ligne sur bolide-kart.vercel.app ✓ |

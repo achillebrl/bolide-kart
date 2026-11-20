@@ -199,7 +199,9 @@ function majHud() {
   $('rang').textContent = rang;
   $('suffixe').textContent = suffixe(rang);
   $('tour').textContent = `Tour ${Math.min(TOURS, Math.max(1, joueur.tours))}/${TOURS}`;
-  $('chrono').textContent = formaterTemps(etat === 'course' ? horloge - depart : 0);
+  // Bug du 20/11 : à l'arrivée, le chrono retombait à 0:00,0. Il garde maintenant le temps du joueur.
+  const temps = joueur.fini ?? (etat === 'course' ? horloge - depart : 0);
+  $('chrono').textContent = formaterTemps(temps);
   if (joueur.fini !== null && etat === 'course') {
     etat = 'arrivee';
     $('rang-final').textContent = rang;
