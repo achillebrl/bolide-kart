@@ -1,0 +1,101 @@
+:root {
+  --ciel: #9ed8f0;
+  --herbe: #7cc35a;
+  --encre: #14213d;
+  --papier: #f7f5ef;
+  --bordure: #e8412c;
+  --bolide: #2457ff;
+  --vert-feu: #2fd36b;
+  --titre: 'Bowlby One', 'Arial Black', sans-serif;
+  --texte: 'Rubik', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ciel); color: var(--encre); font-family: var(--texte); }
+body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+[hidden] { display: none !important; }
+
+/* La plaque de course : le seul élément fort de l'interface. */
+.plaque {
+  font-family: var(--titre);
+  background: var(--papier);
+  color: var(--encre);
+  border: 4px solid var(--encre);
+  border-radius: 14px;
+  line-height: 1;
+  transform: rotate(-4deg);
+  box-shadow: 4px 5px 0 var(--encre);
+}
+.plaque sup { font-size: 0.45em; vertical-align: top; margin-left: 2px; }
+
+#hud {
+  position: fixed; inset: 0 0 auto 0;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 0;
+  pointer-events: none;
+}
+#position { font-size: 56px; padding: 8px 14px 6px; }
+.compteurs { text-align: right; font-weight: 700; font-size: 18px; color: var(--papier); text-shadow: 0 2px 0 var(--encre); }
+.compteurs p { margin: 0 0 4px; }
+#chrono { font-variant-numeric: tabular-nums; }
+
+/* Les feux de départ. */
+#feux {
+  position: fixed; top: 22%; left: 50%; transform: translateX(-50%);
+  display: grid; grid-template-columns: repeat(3, 64px); gap: 12px; justify-items: center;
+  background: var(--encre); padding: 14px 16px; border-radius: 18px;
+  pointer-events: none;
+}
+.feu { width: 52px; height: 52px; border-radius: 50%; background: #2b3550; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.35); }
+.feu.rouge { background: var(--bordure); box-shadow: 0 0 22px var(--bordure); }
+.feu.vert { background: var(--vert-feu); box-shadow: 0 0 26px var(--vert-feu); }
+#feux-texte { grid-column: 1 / -1; margin: 6px 0 0; font-family: var(--titre); font-size: 28px; color: var(--papier); min-height: 1em; }
+
+/* Commandes tactiles : deux grandes zones en bas de l'écran. */
+#commandes {
+  position: fixed; inset: auto 0 0 0;
+  display: flex; justify-content: space-between;
+  padding: 0 16px calc(18px + env(safe-area-inset-bottom));
+}
+.pedale {
+  width: 38vw; max-width: 170px; aspect-ratio: 1.25;
+  border: 4px solid var(--encre); border-radius: 22px;
+  background: rgba(247, 245, 239, 0.82); color: var(--encre);
+  display: grid; place-items: center; cursor: pointer;
+  box-shadow: 0 6px 0 var(--encre);
+}
+.pedale svg { width: 46%; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.pedale.appuye { transform: translateY(4px); box-shadow: 0 2px 0 var(--encre); background: var(--papier); }
+.pedale:focus-visible, .bouton:focus-visible { outline: 4px solid var(--bolide); outline-offset: 4px; }
+
+/* Écrans titre et arrivée. */
+.ecran {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start;
+  padding: 24px 22px calc(40px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, rgba(20, 33, 61, 0.88) 0%, rgba(20, 33, 61, 0.55) 45%, rgba(20, 33, 61, 0) 75%);
+  color: var(--papier);
+}
+.ecran h1 {
+  font-family: var(--titre); font-weight: 400;
+  font-size: clamp(76px, 24vw, 140px); line-height: 0.9; margin: 0 0 14px;
+  color: var(--papier); -webkit-text-stroke: 3px var(--encre);
+  text-shadow: 6px 7px 0 var(--bolide);
+  transform: rotate(-4deg); transform-origin: left bottom;
+}
+.intro { font-size: 19px; line-height: 1.4; max-width: 30ch; margin: 0 0 8px; font-weight: 500; }
+.clavier { font-size: 15px; opacity: 0.8; margin: 0 0 22px; }
+.bouton {
+  font-family: var(--texte); font-weight: 700; font-size: 20px;
+  background: var(--papier); color: var(--encre);
+  border: 4px solid var(--encre); border-radius: 16px;
+  padding: 16px 26px; box-shadow: 0 6px 0 var(--bolide); cursor: pointer;
+}
+.bouton:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--bolide); }
+.plaque.grande { font-size: 120px; padding: 14px 24px 10px; margin-bottom: 22px; }
+#resume { font-size: 21px; margin-bottom: 22px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .plaque, .ecran h1 { transform: none; }
+}
