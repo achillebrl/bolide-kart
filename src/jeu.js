@@ -193,7 +193,7 @@ function suivreCamera(k, dt, titre) {
     haut,
     k.z - (fz * Math.cos(angle) + fx * Math.sin(angle)) * recul,
   );
-  camera.position.lerp(voulu, titre ? 1 : 1 - Math.exp(-dt * 8));
+  camera.position.lerp(voulu, titre ? 1 : 1 - Math.exp(-dt * 20));
   visee.set(k.x + fx * 6, 1.2, k.z + fz * 6);
   camera.lookAt(visee);
   // À plus de 85 % de la vitesse max, la caméra tremble (bruit lissé, toujours le même pour une même horloge).

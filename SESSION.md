@@ -29,3 +29,4 @@ Bug a joué à la version 1 : « T'avais dit midi ! Et en plus, c'est moche ! »
 | 17:58 | « Publie le code sur GitHub et remets le jeu en ligne. » | dépôt public github.com/achillebrl/bolide-kart ; version 2 en ligne sur bolide-kart.vercel.app ✓ |
 
 Séance 2 terminée à 17:58 : version 2 en ligne.
+| 18:07 | **Bug** : à pleine vitesse, la caméra traînait loin derrière le kart bleu ; il paraissait petit et un adversaire prenait toute la place. | corrigé : la caméra suit le kart de plus près ✓ |
